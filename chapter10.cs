@@ -143,4 +143,38 @@ public class UserApplicationService
   // 略
 }
 
+// トランザクションスコープを利用する
+public class UserApplicationService
+{
+  private readonly UserService userService;
+  private readonly IUserFactory userFactory;
+  private readonly IUserRepository userRepository;
 
+  public UserApplicationService(UserService userService, IUserFactory userFactory, IUserRepository userRepository)
+  {
+    this.userService = userService;
+    this.userFactory = userFactory;
+    this.userRepository = userRepository;
+  }
+
+  public void Register(UserRegisterCommand command)
+  {
+    // トランザクションスコープを生成する
+    // using句のスコープ内でコネクションが開かれると自動的にトランザクションが開始される
+    using(var transaction = new TransactionScope())
+    {
+      var userName = new UserName(command.Name);
+      var user = userFactory.Create(userName);
+
+      if (userService.Exists(user))
+      {
+        throw new CanNotRegisterUserException(user, "ユーザは既に存在しています。");
+      }
+
+      userRepository.Save(user);
+      transaction.Complete();
+    }
+  }
+
+  // 略
+}
